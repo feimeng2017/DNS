@@ -122,17 +122,37 @@ const ruleProviders = {
     "behavior": "classical",
     "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt",
     "path": "./ruleset/loyalsoldier/applications.yaml"
+  },
+  "TikTok": {
+    ...ruleProviderCommon,
+    "behavior": "classical",
+    "url": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/rule/TikTok.txt",
+    "path": "./ruleset/xiaolin-007/TikTok.yaml"
   }
 };
+
+
 
 // Routing Rules / 路由规则
 const rules = [
   // 特殊网站 国外地址 需要中国IP访问
   "DOMAIN-SUFFIX,xiuxitong.com,国内直连",
+
+
+
+
   
-  
-  
-  
+
+
+  // ByteDance Overseas & TikTok Custom Rules / 优先匹配字节跳动海外及TikTok域名
+  "DOMAIN-KEYWORD,tiktok,国外代理",
+  "DOMAIN-KEYWORD,byteoversea,国外代理",
+  "DOMAIN-SUFFIX,ibytedtos.com,国外代理",
+  "DOMAIN-SUFFIX,ipstatp.com,国外代理",
+  "DOMAIN-SUFFIX,muscdn.com,国外代理",
+  "DOMAIN-SUFFIX,musical.ly,国外代理",
+  "RULE-SET,TikTok,国外代理",
+
   // Custom Google Play Rules / 自定义 Google Play 与 Google 服务规则
   "DOMAIN-SUFFIX,googleapis.cn,国外代理",
   "DOMAIN-SUFFIX,gstatic.com,国外代理",
