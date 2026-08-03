@@ -128,7 +128,7 @@ const ruleProviders = {
 // Routing Rules / 路由规则
 const rules = [
   // 特殊网站 国外地址 需要中国IP访问
-  "DOMAIN-SUFFIX,www.11111.com,国内直连",
+  "DOMAIN-SUFFIX,xiuxitong.com,国内直连",
   
   
   
