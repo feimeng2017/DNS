@@ -4,11 +4,11 @@ const domesticNameservers = [
   "https://doh.pub/dns-query"     // Tencent DoH / 腾讯DoH
 ];
 
-// Foreign DNS / 国外DNS服务器
+// Foreign DNS / 国外DNS服务器（加入 #RULES 标记强制走路由规则解析）
 const foreignNameservers = [
-  "https://1.1.1.1/dns-query",     // Cloudflare DNS / Cloudflare DoH
-  "https://8.8.4.4/dns-query",     // Google DNS / Google DoH
-  "https://208.67.222.222/dns-query" // OpenDNS / OpenDNS DoH
+  "https://1.1.1.1/dns-query#RULES",     // Cloudflare DNS / Cloudflare DoH
+  "https://8.8.8.8/dns-query#RULES",     // Google DNS / Google DoH
+  "https://208.67.222.222/dns-query#RULES" // OpenDNS / OpenDNS DoH
 ];
 
 // DNS Configuration / DNS参数配置
@@ -45,12 +45,13 @@ const dnsConfig = {
     "time.*.gov",
     "pool.ntp.org"
   ],
-  "default-nameserver": ["223.5.5.5", "1.2.4.8"],
+  "default-nameserver": ["223.5.5.5", "119.29.29.29"],
   "nameserver": [...foreignNameservers],
   "proxy-server-nameserver": [...domesticNameservers],
   "direct-nameserver": [...domesticNameservers],
+  "direct-nameserver-follow-policy": true, // 直连域名解析优先遵从 nameserver-policy
   "nameserver-policy": {
-    "geosite:private,cn": domesticNameservers
+    "geosite:cn,private,apple": domesticNameservers
   }
 };
 
@@ -61,67 +62,25 @@ const ruleProviderCommon = {
   "interval": 86400
 };
 
-// Rule Providers / 规则集源配置
+// Rule Providers / 规则集源配置（已替换为 BlackMatrix7 & ACL4SSR 规则源）
 const ruleProviders = {
-  "google": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/google.txt",
-    "path": "./ruleset/loyalsoldier/google.yaml"
-  },
-  "proxy": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
-    "path": "./ruleset/loyalsoldier/proxy.yaml"
-  },
-  "direct": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt",
-    "path": "./ruleset/loyalsoldier/direct.yaml"
-  },
-  "private": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt",
-    "path": "./ruleset/loyalsoldier/private.yaml"
-  },
-  "gfw": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt",
-    "path": "./ruleset/loyalsoldier/gfw.yaml"
-  },
-  "tld-not-cn": {
-    ...ruleProviderCommon,
-    "behavior": "domain",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/tld-not-cn.txt",
-    "path": "./ruleset/loyalsoldier/tld-not-cn.yaml"
-  },
-  "telegramcidr": {
-    ...ruleProviderCommon,
-    "behavior": "ipcidr",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/telegramcidr.txt",
-    "path": "./ruleset/loyalsoldier/telegramcidr.yaml"
-  },
-  "cncidr": {
-    ...ruleProviderCommon,
-    "behavior": "ipcidr",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt",
-    "path": "./ruleset/loyalsoldier/cncidr.yaml"
-  },
-  "lancidr": {
-    ...ruleProviderCommon,
-    "behavior": "ipcidr",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt",
-    "path": "./ruleset/loyalsoldier/lancidr.yaml"
-  },
-  "applications": {
+  "Telegram": {
     ...ruleProviderCommon,
     "behavior": "classical",
-    "url": "https://fastly.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt",
-    "path": "./ruleset/loyalsoldier/applications.yaml"
+    "url": "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Telegram/Telegram_No_Resolve.yaml",
+    "path": "./ruleset/blackmatrix7/Telegram.yaml"
+  },
+  "Apple": {
+    ...ruleProviderCommon,
+    "behavior": "classical",
+    "url": "https://cdn.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Providers/Apple.yaml",
+    "path": "./ruleset/acl4ssr/Apple.yaml"
+  },
+  "AllProxy": {
+    ...ruleProviderCommon,
+    "behavior": "domain",
+    "url": "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Global/Global_Domain.yaml",
+    "path": "./ruleset/blackmatrix7/AllProxy.yaml"
   },
   "TikTok": {
     ...ruleProviderCommon,
@@ -131,17 +90,10 @@ const ruleProviders = {
   }
 };
 
-
-
 // Routing Rules / 路由规则
 const rules = [
   // 特殊网站 国外地址 需要中国IP访问
   "DOMAIN-SUFFIX,xiuxitong.com,国内直连",
-
-
-
-
-  
 
 
   // ByteDance Overseas & TikTok Custom Rules / 优先匹配字节跳动海外及TikTok域名
@@ -161,22 +113,14 @@ const rules = [
   "DOMAIN-SUFFIX,gvt2.com,国外代理",
   "DOMAIN-SUFFIX,github.io,国外代理",
 
-  // Loyalsoldier Rulesets / 规则集分流
-  "RULE-SET,applications,国内直连",
-  "RULE-SET,private,国内直连",
-  "RULE-SET,google,国外代理",
-  "RULE-SET,proxy,国外代理",
-  "RULE-SET,gfw,国外代理",
-  "RULE-SET,tld-not-cn,国外代理",
-  "RULE-SET,direct,国内直连",
-  "RULE-SET,lancidr,国内直连,no-resolve",
-  "RULE-SET,cncidr,国内直连,no-resolve",
-  "RULE-SET,telegramcidr,国外代理,no-resolve",
-
-  // GeoIP & GeoSite / 地理位置分流
+  // Rule-Sets & Local Rules / 规则集与内网/直连分流
+  "GEOSITE,private,国内直连",
+  "GEOIP,private,国内直连,no-resolve",
+  "RULE-SET,Telegram,国外代理",
+  "RULE-SET,Apple,国内直连",
   "GEOSITE,CN,国内直连",
-  "GEOIP,LAN,国内直连,no-resolve",
-  "GEOIP,CN,国内直连,no-resolve",
+  "RULE-SET,AllProxy,国外代理",
+  "GEOIP,CN,国内直连", // 不加 no-resolve 避免 QQ/微信图片加载异常
 
   // Match Unrouted Traffic / 漏网之鱼（未命中规则全部走国外代理）
   "MATCH,国外代理"
