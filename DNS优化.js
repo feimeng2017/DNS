@@ -179,4 +179,4 @@ function main(config) {
   }
 
   return config;
-}脚本不能针对节点测速显示延迟数值想加一个这个
+}
