@@ -1,14 +1,14 @@
 // Domestic DNS / 国内DNS服务器
 const domesticNameservers = [
-  "https://223.5.5.5/dns-query", // Alibaba DoH / 阿里DoH
-  "https://doh.pub/dns-query"     // Tencent DoH / 腾讯DoH
+  "https://223.5.5.5/dns-query",
+  "https://doh.pub/dns-query"
 ];
 
-// Foreign DNS / 国外DNS服务器（加入 #RULES 标记强制走路由规则解析）
+// Foreign DNS / 国外DNS服务器
 const foreignNameservers = [
-  "https://1.1.1.1/dns-query#RULES",     // Cloudflare DNS / Cloudflare DoH
-  "https://8.8.8.8/dns-query#RULES",     // Google DNS / Google DoH
-  "https://208.67.222.222/dns-query#RULES" // OpenDNS / OpenDNS DoH
+  "https://1.1.1.1/dns-query#RULES",
+  "https://8.8.8.8/dns-query#RULES",
+  "https://208.67.222.222/dns-query#RULES"
 ];
 
 // DNS Configuration / DNS参数配置
@@ -23,23 +23,18 @@ const dnsConfig = {
   "enhanced-mode": "fake-ip",
   "fake-ip-range": "198.18.0.1/16",
   "fake-ip-filter": [
-    // Local host & devices / 本地主机与设备
     "+.lan",
     "+.local",
-    // Windows Network Connectivity Status Indicator / Windows网络连接测试
     "+.msftconnecttest.com",
     "+.msftncsi.com",
-    // QQ & WeChat Login Detection / QQ与微信快速登录检测
     "localhost.ptlogin2.qq.com",
     "localhost.sec.qq.com",
     "localhost.work.weixin.qq.com",
-    // Google Play Store Download Fix / 谷歌商店下载修复（防止Fake-IP干扰下载）
     "+.googleapis.cn",
     "+.xn--ngstr-lra8j.com",
     "+.gvt1.com",
     "+.gvt2.com",
-    // NTP & IP Reverse Lookup / 时间同步与IP反向解析
-    "+.in-addr.arpa", 
+    "+.in-addr.arpa",
     "+.ip6.arpa",
     "time.*.com",
     "time.*.gov",
@@ -49,20 +44,20 @@ const dnsConfig = {
   "nameserver": [...foreignNameservers],
   "proxy-server-nameserver": [...domesticNameservers],
   "direct-nameserver": [...domesticNameservers],
-  "direct-nameserver-follow-policy": true, // 直连域名解析优先遵从 nameserver-policy
+  "direct-nameserver-follow-policy": true,
   "nameserver-policy": {
     "geosite:cn,private,apple": domesticNameservers
   }
 };
 
-// Rule Provider Common Options / 规则集通用配置
+// Rule Provider Common Options
 const ruleProviderCommon = {
   "type": "http",
   "format": "yaml",
   "interval": 86400
 };
 
-// Rule Providers / 规则集源配置（已替换为 BlackMatrix7 & ACL4SSR 规则源）
+// Rule Providers
 const ruleProviders = {
   "Telegram": {
     ...ruleProviderCommon,
@@ -90,13 +85,10 @@ const ruleProviders = {
   }
 };
 
-// Routing Rules / 路由规则
+// Routing Rules
 const rules = [
-  // 特殊网站 国外地址 需要中国IP访问
   "DOMAIN-SUFFIX,xiuxitong.com,国内直连",
 
-
-  // ByteDance Overseas & TikTok Custom Rules / 优先匹配字节跳动海外及TikTok域名
   "DOMAIN-KEYWORD,tiktok,国外代理",
   "DOMAIN-KEYWORD,byteoversea,国外代理",
   "DOMAIN-SUFFIX,ibytedtos.com,国外代理",
@@ -105,7 +97,6 @@ const rules = [
   "DOMAIN-SUFFIX,musical.ly,国外代理",
   "RULE-SET,TikTok,国外代理",
 
-  // Custom Google Play Rules / 自定义 Google Play 与 Google 服务规则
   "DOMAIN-SUFFIX,googleapis.cn,国外代理",
   "DOMAIN-SUFFIX,gstatic.com,国外代理",
   "DOMAIN-SUFFIX,xn--ngstr-lra8j.com,国外代理",
@@ -113,20 +104,18 @@ const rules = [
   "DOMAIN-SUFFIX,gvt2.com,国外代理",
   "DOMAIN-SUFFIX,github.io,国外代理",
 
-  // Rule-Sets & Local Rules / 规则集与内网/直连分流
   "GEOSITE,private,国内直连",
   "GEOIP,private,国内直连,no-resolve",
   "RULE-SET,Telegram,国外代理",
   "RULE-SET,Apple,国内直连",
   "GEOSITE,CN,国内直连",
   "RULE-SET,AllProxy,国外代理",
-  "GEOIP,CN,国内直连", // 不加 no-resolve 避免 QQ/微信图片加载异常
+  "GEOIP,CN,国内直连",
 
-  // Match Unrouted Traffic / 漏网之鱼（未命中规则全部走国外代理）
   "MATCH,国外代理"
 ];
 
-// Base Option for Proxy Groups / 代理组通用选项配置
+// Base Option for Proxy Groups
 const groupBaseOption = {
   "interval": 300,
   "timeout": 3000,
@@ -136,24 +125,35 @@ const groupBaseOption = {
   "hidden": false
 };
 
-// Main Entry Function / 程序主入口
+// Main Entry Function
 function main(config) {
   const proxyCount = config?.proxies?.length ?? 0;
   const proxyProviderCount =
-    typeof config?.["proxy-providers"] === "object" ? Object.keys(config["proxy-providers"]).length : 0;
+    typeof config?.["proxy-providers"] === "object"
+      ? Object.keys(config["proxy-providers"]).length
+      : 0;
+
   if (proxyCount === 0 && proxyProviderCount === 0) {
     throw new Error("配置文件中未找到任何代理");
   }
 
-  // Override DNS Settings / 覆盖原配置中的 DNS 设置
   config["dns"] = dnsConfig;
 
-  // Override Proxy Groups / 覆盖原配置中的代理组
   config["proxy-groups"] = [
     {
       ...groupBaseOption,
       "name": "国外代理",
       "type": "select",
+      "proxies": ["国外负载均衡"],
+      "include-all": true,
+      "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
+      "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
+    },
+    {
+      ...groupBaseOption,
+      "name": "国外负载均衡",
+      "type": "load-balance",
+      "strategy": "round-robin",
       "include-all": true,
       "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
       "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
@@ -167,11 +167,9 @@ function main(config) {
     }
   ];
 
-  // Override Rule Providers and Rules / 覆盖规则集和路由规则
   config["rule-providers"] = ruleProviders;
   config["rules"] = rules;
 
-  // Force UDP Enable on Proxies / 强制为每个节点开启 UDP 功能
   if (config["proxies"]) {
     config["proxies"].forEach(proxy => {
       proxy.udp = true;
