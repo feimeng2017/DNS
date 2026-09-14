@@ -4,12 +4,10 @@ const domesticNameservers = [
   "https://doh.pub/dns-query"
 ];
 
-// Foreign DNS / 国外DNS服务器
-// 通过 #RULES 按路由规则建立 DNS 连接；proxy-server-nameserver
-// 用国内 DNS 专门解决代理节点域名，避免 DNS 代理的“鸡生蛋”问题。
+// Foreign DNS / 国外DNS服务器（指定走“国外代理”节点出站）
 const foreignNameservers = [
-  "https://1.1.1.1/dns-query#RULES",
-  "https://8.8.8.8/dns-query#RULES"
+  "https://1.1.1.1/dns-query#国外代理",
+  "https://8.8.8.8/dns-query#国外代理"
 ];
 
 // DNS Configuration / DNS参数配置
@@ -17,8 +15,9 @@ const dnsConfig = {
   "enable": true,
   "listen": "0.0.0.0:1053",
 
-  // 本地网络有 IPv6 时允许解析 AAAA；没有 IPv6 时由系统/网络栈自动走 IPv4。
-  "ipv6": true,
+  // 本地 Fake-IP 模式关闭 IPv6 DNS 解析，避免 Chrome ULA 拦截；
+  // 你的双栈 VPS 会在远端自动以 IPv6 访问目标外网
+  "ipv6": false,
 
   "prefer-h3": false,
   "respect-rules": true,
@@ -34,9 +33,6 @@ const dnsConfig = {
     "localhost.ptlogin2.qq.com",
     "localhost.sec.qq.com",
     "localhost.work.weixin.qq.com",
-    "+.xn--ngstr-lra8j.com",
-    "+.gvt1.com",
-    "+.gvt2.com",
     "+.in-addr.arpa",
     "+.ip6.arpa",
     "time.*.com",
@@ -44,33 +40,39 @@ const dnsConfig = {
     "pool.ntp.org"
   ],
 
-  // 只负责解析 DNS 服务器自身地址；必须使用 IP/可直接访问的地址。
   "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-
-  // 普通/国外域名默认使用境外 DoH，并按路由规则建立 DoH 连接。
   "nameserver": [...foreignNameservers],
-
-  // 代理节点域名使用国内 DNS，避免代理 DNS 自身形成循环依赖。
   "proxy-server-nameserver": [...domesticNameservers],
-
-  // DIRECT 出口域名使用国内 DNS；同时遵循 nameserver-policy。
   "direct-nameserver": [...domesticNameservers],
   "direct-nameserver-follow-policy": true,
 
-  // 中国、内网、Apple 域名直接使用国内 DNS。
+  // 仅国内域名、内网以及【苹果中国区专属服务】走国内 DNS 解析
   "nameserver-policy": {
-    "geosite:cn,private,apple": domesticNameservers
+    "geosite:apple-cn,cn,private": domesticNameservers
   }
 };
 
-// Rule Provider Common Options
+// 域名嗅探（防止裸 IP 直连漏油）
+const snifferConfig = {
+  "enable": true,
+  "force-dns-mapping": true,
+  "parse-pure-ip": true,
+  "override-destination": false,
+  "sniff": {
+    "HTTP": { "ports": [80, "8080-8880"], "override-destination": true },
+    "TLS": { "ports": [443, 8443] },
+    "QUIC": { "ports": [443, 8443] }
+  },
+  "skip-domain": ["+.apple.com", "Mijia Cloud", "dlg.io.mi.com"]
+};
+
+// 规则集配置
 const ruleProviderCommon = {
   "type": "http",
   "format": "yaml",
   "interval": 86400
 };
 
-// Rule Providers
 const ruleProviders = {
   "Telegram": {
     ...ruleProviderCommon,
@@ -78,82 +80,62 @@ const ruleProviders = {
     "url": "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Telegram/Telegram_No_Resolve.yaml",
     "path": "./ruleset/blackmatrix7/Telegram.yaml"
   },
-
-  "Apple": {
-    ...ruleProviderCommon,
-    "behavior": "classical",
-    "url": "https://cdn.jsdelivr.net/gh/ACL4SSR/ACL4SSR@master/Clash/Providers/Apple.yaml",
-    "path": "./ruleset/acl4ssr/Apple.yaml"
-  },
-
   "AllProxy": {
     ...ruleProviderCommon,
     "behavior": "domain",
     "url": "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Global/Global_Domain.yaml",
     "path": "./ruleset/blackmatrix7/AllProxy.yaml"
-  },
-
-  "TikTok": {
-    ...ruleProviderCommon,
-    "behavior": "classical",
-    "url": "https://fastly.jsdelivr.net/gh/xiaolin-007/clash@main/rule/TikTok.txt",
-    "path": "./ruleset/xiaolin-007/TikTok.yaml"
   }
 };
 
-// Routing Rules
-// 规则按“从上到下、首次命中即停止”执行。
+// 路由规则（从上到下匹配）
 const rules = [
   "DOMAIN-SUFFIX,xiuxitong.com,国内直连",
 
-  // 明确需要代理的国外服务优先于 CN/GeoIP 规则。
+  // TikTok 分流
   "DOMAIN-KEYWORD,tiktok,国外代理",
   "DOMAIN-KEYWORD,byteoversea,国外代理",
   "DOMAIN-SUFFIX,ibytedtos.com,国外代理",
   "DOMAIN-SUFFIX,ipstatp.com,国外代理",
   "DOMAIN-SUFFIX,muscdn.com,国外代理",
   "DOMAIN-SUFFIX,musical.ly,国外代理",
-  "RULE-SET,TikTok,国外代理",
+  "GEOSITE,tiktok,国外代理",
 
-  "DOMAIN-SUFFIX,gstatic.com,国外代理",
-  "DOMAIN-SUFFIX,xn--ngstr-lra8j.com,国外代理",
-  "DOMAIN-SUFFIX,gvt1.com,国外代理",
-  "DOMAIN-SUFFIX,gvt2.com,国外代理",
-  "DOMAIN-SUFFIX,github.io,国外代理",
+  // Telegram
+  "RULE-SET,Telegram,国外代理",
 
-  // 私有地址优先直连；GEOIP private 不需要再次解析域名。
+  // 【苹果双商店精细化分流】
+  // 1. 明确的国区服务（云上贵州 iCloud、国内官网与 CDN）强制直连，低延迟满速
+  "GEOSITE,apple-cn,国内直连",
+  // 2. 其余所有苹果全球服务（美区 App Store、Apple TV+ 等）走苹果专属策略组
+  "GEOSITE,apple,苹果服务",
+
+  // 私有网段直连
   "GEOSITE,private,国内直连",
   "GEOIP,private,国内直连,no-resolve",
 
-  // Telegram / Apple 明确规则优先于通用国外规则。
-  "RULE-SET,Telegram,国外代理",
-  "RULE-SET,Apple,国内直连",
-
-  // 通用国外域名规则放在 CN 规则之前，避免被后面的 GEOSITE,CN 抢先命中。
+  // 常见国外规则集
   "RULE-SET,AllProxy,国外代理",
 
-  // 中国域名/IP 直连。
+  // 国内直连判定（加 no-resolve 避免未命中外网域名首包延迟）
   "GEOSITE,CN,国内直连",
-  "GEOIP,CN,国内直连",
+  "GEOIP,CN,国内直连,no-resolve",
 
-  // 其余流量全部代理。
+  // 兜底全走国外代理
   "MATCH,国外代理"
 ];
 
-// Base Option for Proxy Groups
 const groupBaseOption = {
   "interval": 300,
   "timeout": 5000,
   "url": "https://www.google.com/generate_204",
   "lazy": true,
-  "max-failed-times": 5,
+  "max-failed-times": 3,
   "hidden": false
 };
 
-// Main Entry Function
 function main(config) {
   const proxyCount = config?.proxies?.length ?? 0;
-
   const proxyProviderCount =
     typeof config?.["proxy-providers"] === "object"
       ? Object.keys(config["proxy-providers"]).length
@@ -163,19 +145,16 @@ function main(config) {
     throw new Error("配置文件中未找到任何代理");
   }
 
-  // 开启 Mihomo 全局 IPv6 能力：
-  // 有 IPv6 的网络可以使用；
-  // 没有 IPv6 的网络仍可正常使用 IPv4。
-  // 不在覆写层强制 ipv6-prefer。
-  config["ipv6"] = true;
-
+  config["sniffer"] = snifferConfig;
   config["dns"] = dnsConfig;
 
+  // 策略组定义
   config["proxy-groups"] = [
     {
       ...groupBaseOption,
       "name": "国外代理",
       "type": "select",
+      // 优先提供【国外负载均衡】，同时也把单个节点列出供手动指定
       "proxies": ["国外负载均衡"],
       "include-all": true,
       "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
@@ -186,10 +165,20 @@ function main(config) {
       ...groupBaseOption,
       "name": "国外负载均衡",
       "type": "load-balance",
-      "strategy": "round-robin",
+      // 【关键优化】：保留负载均衡，采用一致性哈希（consistent-hashing），防止跳 IP 导致封号/掉登录
+      "strategy": "consistent-hashing",
       "include-all": true,
       "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
-      "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
+      "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/speed.svg"
+    },
+
+    {
+      ...groupBaseOption,
+      "name": "苹果服务",
+      "type": "select",
+      // 默认国外代理（保证美区商店畅通）；备用 DIRECT（大软件下载时可临时切直连提速）
+      "proxies": ["国外代理", "DIRECT"],
+      "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/apple.svg"
     },
 
     {
