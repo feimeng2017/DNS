@@ -8,7 +8,7 @@ var groupBaseOption = {
   "hidden": false
 };
 
-// 辅助对象合并函数（ES5 兼容）
+// 辅助对象合并函数
 function mergeOptions(base, extra) {
   var result = {};
   var key;
@@ -37,7 +37,7 @@ var ruleProviders = {
   }
 };
 
-// 域名嗅探配置（关闭 QUIC，确保网页与应用秒开）
+// 域名嗅探配置
 var snifferConfig = {
   "enable": true,
   "sniff": {
@@ -55,11 +55,11 @@ var snifferConfig = {
   ]
 };
 
-// DNS 模块配置（支持 IPv6 完全体与纯 IPv4 无感自适应）
+// DNS 模块配置
 var dnsConfig = {
   "enable": true,
   "ipv6": true,
-  "prefer-ipv4": true,
+  "prefer-ipv4": true, // 核心：优先 IPv4，解决国内网站元素超时需二次刷新的问题
   "cache-algorithm": "arc",
   "respect-rules": true,
   "use-hosts": true,
@@ -78,9 +78,7 @@ var dnsConfig = {
   ],
   "direct-nameserver": [
     "223.5.5.5",
-    "119.29.29.29",
-    "2400:3200::1",
-    "2402:4e00::"
+    "119.29.29.29"
   ],
   "nameserver": [
     "https://dns.cloudflare.com/dns-query",
@@ -89,9 +87,7 @@ var dnsConfig = {
   "nameserver-policy": {
     "geosite:private,apple-cn,cn": [
       "223.5.5.5",
-      "119.29.29.29",
-      "2400:3200::1",
-      "2402:4e00::"
+      "119.29.29.29"
     ]
   },
   "proxy-server-nameserver": [
@@ -100,7 +96,7 @@ var dnsConfig = {
   ]
 };
 
-// TUN 模块配置（严格路由防泄漏，排除私有网络、组播广播与容器网卡）
+// TUN 模块配置
 var tunConfig = {
   "enable": true,
   "stack": "mixed",
@@ -124,7 +120,7 @@ var tunConfig = {
   ]
 };
 
-// 路由规则（加入境外域名拦截，彻底消除测漏站及外网节点直连误伤）
+// 路由规则
 var rules = [
   // 局域网私有网段直连
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
@@ -135,10 +131,18 @@ var rules = [
   "IP-CIDR6,fc00::/7,国内直连,no-resolve",
   "IP-CIDR6,fe80::/10,国内直连,no-resolve",
 
+  // 关键修复：Google Play 商店下载及核心底层 CDN 强制走国外代理
+  "DOMAIN-SUFFIX,services.googleapis.cn,国外代理",
+  "DOMAIN-SUFFIX,googleapis.cn,国外代理",
+  "DOMAIN-SUFFIX,gvt1.com,国外代理",
+  "DOMAIN-SUFFIX,gvt2.com,国外代理",
+  "DOMAIN-SUFFIX,gvt3.com,国外代理",
+  "DOMAIN-SUFFIX,xn--ngstr-lra8j.com,国外代理",
+
   // Telegram 代理
   "RULE-SET,Telegram,国外代理",
 
-  // 关键修复：境外主流域名、测漏与 IP 查询站优先强制走代理
+  // 境外主流域名走代理
   "GEOSITE,geolocation-!cn,国外代理",
 
   // 苹果中国服务直连
@@ -163,10 +167,8 @@ function main(config) {
     throw new Error("配置文件中未找到任何代理节点或订阅源 (proxies / proxy-providers)");
   }
 
-  // 提取 Provider 名称
   var providerNames = hasProviders ? Object.keys(config["proxy-providers"]) : [];
 
-  // 组装代理组对象
   var groupProxy = mergeOptions(groupBaseOption, {
     "name": "国外代理",
     "type": "select",
@@ -192,7 +194,6 @@ function main(config) {
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
   });
 
-  // 仅在真实存在 Provider 时挂载 use 字段
   if (providerNames.length > 0) {
     groupProxy["use"] = providerNames;
     groupLoadBalance["use"] = providerNames;
@@ -200,7 +201,7 @@ function main(config) {
 
   var proxyGroups = [groupProxy, groupLoadBalance, groupDirect];
 
-  // 基础优化参数
+  // 基础参数
   config["ipv6"] = true;
   config["unified-delay"] = true;
   config["tcp-concurrent"] = true;
@@ -213,7 +214,7 @@ function main(config) {
   config["rule-providers"] = ruleProviders;
   config["rules"] = rules;
 
-  // GeoData 数据库源配置
+  // GeoData 镜像源
   config["geodata-mode"] = true;
   config["geox-url"] = {
     "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
@@ -221,7 +222,6 @@ function main(config) {
     "mmdb": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
   };
 
-  // 开启静态节点 UDP
   if (hasProxies) {
     for (var i = 0; i < config["proxies"].length; i++) {
       config["proxies"][i]["udp"] = true;
