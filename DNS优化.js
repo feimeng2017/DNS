@@ -8,7 +8,7 @@ var groupBaseOption = {
   "hidden": false
 };
 
-// 辅助对象合并函数（兼容各类 JS 运行环境）
+// 辅助对象合并函数（ES5 兼容）
 function mergeOptions(base, extra) {
   var result = {};
   var key;
@@ -25,7 +25,7 @@ function mergeOptions(base, extra) {
   return result;
 }
 
-// 保留专用的 Telegram 规则集
+// Telegram 专用规则集
 var ruleProviders = {
   "Telegram": {
     "type": "http",
@@ -37,10 +37,29 @@ var ruleProviders = {
   }
 };
 
-// 老李的 DNS 配置（开启 IPv6 完全体）
+// 域名嗅探配置（关闭 QUIC，确保网页与应用秒开）
+var snifferConfig = {
+  "enable": true,
+  "sniff": {
+    "HTTP": {
+      "ports": [80, "8080-8880"],
+      "override-destination": true
+    },
+    "TLS": {
+      "ports": [443, 8443]
+    }
+  },
+  "skip-domain": [
+    "Mijia Cloud",
+    "+.push.apple.com"
+  ]
+};
+
+// DNS 模块配置（支持 IPv6 完全体与纯 IPv4 无感自适应）
 var dnsConfig = {
   "enable": true,
   "ipv6": true,
+  "prefer-ipv4": true,
   "cache-algorithm": "arc",
   "respect-rules": true,
   "use-hosts": true,
@@ -57,6 +76,12 @@ var dnsConfig = {
     "223.5.5.5",
     "119.29.29.29"
   ],
+  "direct-nameserver": [
+    "223.5.5.5",
+    "119.29.29.29",
+    "2400:3200::1",
+    "2402:4e00::"
+  ],
   "nameserver": [
     "https://dns.cloudflare.com/dns-query",
     "https://dns.google/dns-query"
@@ -64,7 +89,9 @@ var dnsConfig = {
   "nameserver-policy": {
     "geosite:private,apple-cn,cn": [
       "223.5.5.5",
-      "119.29.29.29"
+      "119.29.29.29",
+      "2400:3200::1",
+      "2402:4e00::"
     ]
   },
   "proxy-server-nameserver": [
@@ -73,21 +100,23 @@ var dnsConfig = {
   ]
 };
 
-// 老李的 TUN 配置（开启 IPv6 完全体及严格路由防泄漏）
+// TUN 模块配置（严格路由防泄漏，排除私有网络、组播广播与容器网卡）
 var tunConfig = {
   "enable": true,
   "stack": "mixed",
   "dns-hijack": ["any:53", "tcp://any:53"],
   "auto-route": true,
-  "auto-redirect": true,
+  "auto-redirect": false,
   "auto-detect-interface": true,
   "strict-route": true,
   "route-exclude-address": [
     "192.168.0.0/16",
     "10.0.0.0/8",
     "172.16.0.0/12",
+    "224.0.0.0/4",
     "fc00::/7",
-    "fe80::/10"
+    "fe80::/10",
+    "ff00::/8"
   ],
   "exclude-interface": [
     "docker*",
@@ -95,9 +124,9 @@ var tunConfig = {
   ]
 };
 
-// 整合后的路由规则（Telegram 走代理，Apple 国区直连、外区代理，GEOIP 极简直连）
+// 路由规则
 var rules = [
-  // 局域网与私有 IP 直连
+  // 局域网私有网段直连
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
   "IP-CIDR,192.168.0.0/16,国内直连,no-resolve",
   "IP-CIDR,10.0.0.0/8,国内直连,no-resolve",
@@ -106,70 +135,82 @@ var rules = [
   "IP-CIDR6,fc00::/7,国内直连,no-resolve",
   "IP-CIDR6,fe80::/10,国内直连,no-resolve",
 
-  // Telegram 专属代理
+  // Telegram 代理
   "RULE-SET,Telegram,国外代理",
 
-  // 苹果精细化分流：apple-cn 走直连，美区商店自动滑向后面的国外代理
+  // 苹果中国服务直连
   "GEOSITE,apple-cn,国内直连",
 
-  // 国内 IP 归属地直连（不加 no-resolve 确保域名解析判断准确）
+  // 国内主流域名秒直连
+  "GEOSITE,cn,国内直连",
+
+  // 国内 IP 归属兜底直连
   "GEOIP,CN,国内直连",
 
-  // 兜底全走国外代理（涵盖美区 Apple、TikTok 及所有外网服务）
+  // 最终兜底走国外代理
   "MATCH,国外代理"
 ];
 
-// 你的代理组配置
-var proxyGroups = [
-  mergeOptions(groupBaseOption, {
+// 主入口函数
+function main(config) {
+  var hasProxies = Boolean(config && config.proxies && Array.isArray(config.proxies) && config.proxies.length > 0);
+  var hasProviders = Boolean(config && typeof config["proxy-providers"] === "object" && config["proxy-providers"] !== null && Object.keys(config["proxy-providers"]).length > 0);
+
+  if (!hasProxies && !hasProviders) {
+    throw new Error("配置文件中未找到任何代理节点或订阅源 (proxies / proxy-providers)");
+  }
+
+  // 提取 Provider 名称，若不存在则为 null 避免空数组报错
+  var providerNames = hasProviders ? Object.keys(config["proxy-providers"]) : [];
+
+  // 组装代理组对象
+  var groupProxy = mergeOptions(groupBaseOption, {
     "name": "国外代理",
     "type": "select",
     "proxies": ["国外负载均衡"],
     "include-all": true,
     "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
-  }),
-  mergeOptions(groupBaseOption, {
+  });
+
+  var groupLoadBalance = mergeOptions(groupBaseOption, {
     "name": "国外负载均衡",
     "type": "load-balance",
     "strategy": "round-robin",
     "include-all": true,
     "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
-  }),
-  mergeOptions(groupBaseOption, {
+  });
+
+  var groupDirect = mergeOptions(groupBaseOption, {
     "name": "国内直连",
     "type": "select",
     "proxies": ["DIRECT", "国外代理"],
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
-  })
-];
+  });
 
-// 主入口函数
-function main(config) {
-  var proxyCount = (config && config.proxies) ? config.proxies.length : 0;
-  var proxyProviderCount =
-    (config && typeof config["proxy-providers"] === "object" && config["proxy-providers"] !== null)
-      ? Object.keys(config["proxy-providers"]).length
-      : 0;
-
-  if (proxyCount === 0 && proxyProviderCount === 0) {
-    throw new Error("配置文件中未找到任何代理");
+  // 仅在真实存在 Provider 时挂载 use 字段，彻底避免空数组校验异常
+  if (providerNames.length > 0) {
+    groupProxy["use"] = providerNames;
+    groupLoadBalance["use"] = providerNames;
   }
 
-  // 基础参数与全局 IPv6 开关
+  var proxyGroups = [groupProxy, groupLoadBalance, groupDirect];
+
+  // 基础优化参数
   config["ipv6"] = true;
   config["unified-delay"] = true;
   config["tcp-concurrent"] = true;
 
-  // 写入配置模块
+  // 模块注入
+  config["sniffer"] = snifferConfig;
   config["dns"] = dnsConfig;
   config["tun"] = tunConfig;
   config["proxy-groups"] = proxyGroups;
   config["rule-providers"] = ruleProviders;
   config["rules"] = rules;
 
-  // GeoData 资源镜像更新源
+  // GeoData 数据库源配置
   config["geodata-mode"] = true;
   config["geox-url"] = {
     "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
@@ -177,8 +218,8 @@ function main(config) {
     "mmdb": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
   };
 
-  // 开启所有节点的 UDP 支持
-  if (config["proxies"] && Array.isArray(config["proxies"])) {
+  // 开启静态节点 UDP
+  if (hasProxies) {
     for (var i = 0; i < config["proxies"].length; i++) {
       config["proxies"][i]["udp"] = true;
     }
