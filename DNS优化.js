@@ -4,7 +4,7 @@ const groupBaseOption = {
   timeout: 3000,
   url: "https://www.google.com/generate_204",
   lazy: true,
-  max-failed-times: 3,
+  "max-failed-times": 3,
   hidden: false
 };
 
@@ -111,9 +111,9 @@ const proxyGroups = [
 
 // 主处理函数
 function main(config) {
-  const proxyCount = config?.proxies?.length ?? 0;
+  const proxyCount = (config && config.proxies) ? config.proxies.length : 0;
   const proxyProviderCount =
-    typeof config?.["proxy-providers"] === "object"
+    (config && typeof config["proxy-providers"] === "object" && config["proxy-providers"] !== null)
       ? Object.keys(config["proxy-providers"]).length
       : 0;
 
@@ -145,7 +145,7 @@ function main(config) {
 
   // 节点 UDP 开启
   if (config["proxies"]) {
-    config["proxies"].forEach(proxy => {
+    config["proxies"].forEach(function(proxy) {
       proxy.udp = true;
     });
   }
