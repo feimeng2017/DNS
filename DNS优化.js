@@ -1,17 +1,34 @@
 // 基础参数配置
-const groupBaseOption = {
-  interval: 300,
-  timeout: 3000,
-  url: "https://www.google.com/generate_204",
-  lazy: true,
+var groupBaseOption = {
+  "interval": 300,
+  "timeout": 3000,
+  "url": "https://www.google.com/generate_204",
+  "lazy": true,
   "max-failed-times": 3,
-  hidden: false
+  "hidden": false
 };
 
+// 辅助对象合并函数（兼容旧版 JS 运行环境）
+function mergeOptions(base, extra) {
+  var result = {};
+  var key;
+  for (key in base) {
+    if (Object.prototype.hasOwnProperty.call(base, key)) {
+      result[key] = base[key];
+    }
+  }
+  for (key in extra) {
+    if (Object.prototype.hasOwnProperty.call(extra, key)) {
+      result[key] = extra[key];
+    }
+  }
+  return result;
+}
+
 // 老李的 DNS 配置（开启 IPv6 完全体）
-const dnsConfig = {
-  enable: true,
-  ipv6: true,
+var dnsConfig = {
+  "enable": true,
+  "ipv6": true,
   "cache-algorithm": "arc",
   "respect-rules": true,
   "use-hosts": true,
@@ -29,7 +46,7 @@ const dnsConfig = {
     "223.5.5.5",
     "119.29.29.29"
   ],
-  nameserver: [
+  "nameserver": [
     "https://dns.cloudflare.com/dns-query",
     "https://dns.google/dns-query"
   ],
@@ -46,9 +63,9 @@ const dnsConfig = {
 };
 
 // 老李的 TUN 配置（开启 IPv6 完全体及严格路由防泄漏）
-const tunConfig = {
-  enable: true,
-  stack: "mixed",
+var tunConfig = {
+  "enable": true,
+  "stack": "mixed",
   "dns-hijack": ["any:53", "tcp://any:53"],
   "auto-route": true,
   "auto-redirect": true,
@@ -67,8 +84,8 @@ const tunConfig = {
   ]
 };
 
-// 老李的路由规则（适配你的代理组名称：国内直连 / 国外代理）
-const rules = [
+// 老李的路由规则（适配代理组名称：国内直连 / 国外代理）
+var rules = [
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
   "IP-CIDR,192.168.0.0/16,国内直连,no-resolve",
   "IP-CIDR,10.0.0.0/8,国内直连,no-resolve",
@@ -80,39 +97,36 @@ const rules = [
   "MATCH,国外代理"
 ];
 
-// 你的代理组配置
-const proxyGroups = [
-  {
-    ...groupBaseOption,
-    name: "国外代理",
-    type: "select",
-    proxies: ["国外负载均衡"],
+// 代理组配置
+var proxyGroups = [
+  mergeOptions(groupBaseOption, {
+    "name": "国外代理",
+    "type": "select",
+    "proxies": ["国外负载均衡"],
     "include-all": true,
-    filter: "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
-    icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
-  },
-  {
-    ...groupBaseOption,
-    name: "国外负载均衡",
-    type: "load-balance",
-    strategy: "round-robin",
+    "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
+    "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
+  }),
+  mergeOptions(groupBaseOption, {
+    "name": "国外负载均衡",
+    "type": "load-balance",
+    "strategy": "round-robin",
     "include-all": true,
-    filter: "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
-    icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
-  },
-  {
-    ...groupBaseOption,
-    name: "国内直连",
-    type: "select",
-    proxies: ["DIRECT", "国外代理"],
-    icon: "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
-  }
+    "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
+    "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
+  }),
+  mergeOptions(groupBaseOption, {
+    "name": "国内直连",
+    "type": "select",
+    "proxies": ["DIRECT", "国外代理"],
+    "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
+  })
 ];
 
-// 主处理函数
+// 主入口函数
 function main(config) {
-  const proxyCount = (config && config.proxies) ? config.proxies.length : 0;
-  const proxyProviderCount =
+  var proxyCount = (config && config.proxies) ? config.proxies.length : 0;
+  var proxyProviderCount =
     (config && typeof config["proxy-providers"] === "object" && config["proxy-providers"] !== null)
       ? Object.keys(config["proxy-providers"]).length
       : 0;
@@ -121,33 +135,33 @@ function main(config) {
     throw new Error("配置文件中未找到任何代理");
   }
 
-  // 基础与全局 IPv6 开关
+  // 基础参数与全局 IPv6 开关
   config["ipv6"] = true;
   config["unified-delay"] = true;
   config["tcp-concurrent"] = true;
 
-  // 注入各模块
+  // 写入各模块
   config["dns"] = dnsConfig;
   config["tun"] = tunConfig;
   config["proxy-groups"] = proxyGroups;
   config["rules"] = rules;
 
-  // 清理不再需要的外部规则提供商，提升载入速度
+  // 清除冗余 rule-providers
   delete config["rule-providers"];
 
-  // 补充 GeoData 镜像源配置，确保规则库正常更新
+  // GeoData 资源加速源
   config["geodata-mode"] = true;
   config["geox-url"] = {
-    geoip: "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
-    geosite: "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat",
-    mmdb: "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
+    "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
+    "geosite": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat",
+    "mmdb": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
   };
 
-  // 节点 UDP 开启
-  if (config["proxies"]) {
-    config["proxies"].forEach(function(proxy) {
-      proxy.udp = true;
-    });
+  // 开启所有节点的 UDP 支持
+  if (config["proxies"] && Array.isArray(config["proxies"])) {
+    for (var i = 0; i < config["proxies"].length; i++) {
+      config["proxies"][i]["udp"] = true;
+    }
   }
 
   return config;
