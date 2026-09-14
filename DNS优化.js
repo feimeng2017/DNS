@@ -8,7 +8,7 @@ var groupBaseOption = {
   "hidden": false
 };
 
-// 辅助对象合并函数（兼容旧版 JS 运行环境）
+// 辅助对象合并函数（兼容各类 JS 运行环境）
 function mergeOptions(base, extra) {
   var result = {};
   var key;
@@ -25,6 +25,18 @@ function mergeOptions(base, extra) {
   return result;
 }
 
+// 保留专用的 Telegram 规则集
+var ruleProviders = {
+  "Telegram": {
+    "type": "http",
+    "format": "yaml",
+    "interval": 86400,
+    "behavior": "classical",
+    "url": "https://cdn.jsdelivr.net/gh/blackmatrix7/ios_rule_script@master/rule/Clash/Telegram/Telegram_No_Resolve.yaml",
+    "path": "./ruleset/blackmatrix7/Telegram.yaml"
+  }
+};
+
 // 老李的 DNS 配置（开启 IPv6 完全体）
 var dnsConfig = {
   "enable": true,
@@ -37,7 +49,6 @@ var dnsConfig = {
   "fake-ip-range": "198.18.0.0/16",
   "fake-ip-filter-mode": "blacklist",
   "fake-ip-filter": [
-    "*",
     "+.lan",
     "+.local",
     "+.market.xiaomi.com"
@@ -51,7 +62,7 @@ var dnsConfig = {
     "https://dns.google/dns-query"
   ],
   "nameserver-policy": {
-    "geosite:private,cn": [
+    "geosite:private,apple-cn,cn": [
       "223.5.5.5",
       "119.29.29.29"
     ]
@@ -84,8 +95,9 @@ var tunConfig = {
   ]
 };
 
-// 老李的路由规则（适配代理组名称：国内直连 / 国外代理）
+// 整合后的路由规则（Telegram 走代理，Apple 国区直连、外区代理，GEOIP 极简直连）
 var rules = [
+  // 局域网与私有 IP 直连
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
   "IP-CIDR,192.168.0.0/16,国内直连,no-resolve",
   "IP-CIDR,10.0.0.0/8,国内直连,no-resolve",
@@ -93,11 +105,21 @@ var rules = [
   "IP-CIDR6,::1/128,国内直连,no-resolve",
   "IP-CIDR6,fc00::/7,国内直连,no-resolve",
   "IP-CIDR6,fe80::/10,国内直连,no-resolve",
+
+  // Telegram 专属代理
+  "RULE-SET,Telegram,国外代理",
+
+  // 苹果精细化分流：apple-cn 走直连，美区商店自动滑向后面的国外代理
+  "GEOSITE,apple-cn,国内直连",
+
+  // 国内 IP 归属地直连（不加 no-resolve 确保域名解析判断准确）
   "GEOIP,CN,国内直连",
+
+  // 兜底全走国外代理（涵盖美区 Apple、TikTok 及所有外网服务）
   "MATCH,国外代理"
 ];
 
-// 代理组配置
+// 你的代理组配置
 var proxyGroups = [
   mergeOptions(groupBaseOption, {
     "name": "国外代理",
@@ -140,16 +162,14 @@ function main(config) {
   config["unified-delay"] = true;
   config["tcp-concurrent"] = true;
 
-  // 写入各模块
+  // 写入配置模块
   config["dns"] = dnsConfig;
   config["tun"] = tunConfig;
   config["proxy-groups"] = proxyGroups;
+  config["rule-providers"] = ruleProviders;
   config["rules"] = rules;
 
-  // 清除冗余 rule-providers
-  delete config["rule-providers"];
-
-  // GeoData 资源加速源
+  // GeoData 资源镜像更新源
   config["geodata-mode"] = true;
   config["geox-url"] = {
     "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
