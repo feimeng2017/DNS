@@ -124,7 +124,7 @@ var tunConfig = {
   ]
 };
 
-// 路由规则
+// 路由规则（加入境外域名拦截，彻底消除测漏站及外网节点直连误伤）
 var rules = [
   // 局域网私有网段直连
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
@@ -138,10 +138,13 @@ var rules = [
   // Telegram 代理
   "RULE-SET,Telegram,国外代理",
 
+  // 关键修复：境外主流域名、测漏与 IP 查询站优先强制走代理
+  "GEOSITE,geolocation-!cn,国外代理",
+
   // 苹果中国服务直连
   "GEOSITE,apple-cn,国内直连",
 
-  // 国内主流域名秒直连
+  // 确认属于国内的域名走直连
   "GEOSITE,cn,国内直连",
 
   // 国内 IP 归属兜底直连
@@ -160,7 +163,7 @@ function main(config) {
     throw new Error("配置文件中未找到任何代理节点或订阅源 (proxies / proxy-providers)");
   }
 
-  // 提取 Provider 名称，若不存在则为 null 避免空数组报错
+  // 提取 Provider 名称
   var providerNames = hasProviders ? Object.keys(config["proxy-providers"]) : [];
 
   // 组装代理组对象
@@ -189,7 +192,7 @@ function main(config) {
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
   });
 
-  // 仅在真实存在 Provider 时挂载 use 字段，彻底避免空数组校验异常
+  // 仅在真实存在 Provider 时挂载 use 字段
   if (providerNames.length > 0) {
     groupProxy["use"] = providerNames;
     groupLoadBalance["use"] = providerNames;
