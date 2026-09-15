@@ -59,7 +59,6 @@ var snifferConfig = {
 var dnsConfig = {
   "enable": true,
   "ipv6": true,
-  "prefer-ipv4": true, // 核心：优先 IPv4，解决国内网站元素超时需二次刷新的问题
   "cache-algorithm": "arc",
   "respect-rules": true,
   "use-hosts": true,
@@ -91,8 +90,8 @@ var dnsConfig = {
     ]
   },
   "proxy-server-nameserver": [
-    "https://223.5.5.5/dns-query",
-    "https://120.53.53.53/dns-query"
+    "https://doh.pub/dns-query",
+    "https://dns.alidns.com/dns-query"
   ]
 };
 
@@ -142,14 +141,14 @@ var rules = [
   // Telegram 代理
   "RULE-SET,Telegram,国外代理",
 
-  // 境外主流域名走代理
-  "GEOSITE,geolocation-!cn,国外代理",
-
   // 苹果中国服务直连
   "GEOSITE,apple-cn,国内直连",
 
   // 确认属于国内的域名走直连
   "GEOSITE,cn,国内直连",
+
+  // 境外主流域名走代理
+  "GEOSITE,geolocation-!cn,国外代理",
 
   // 国内 IP 归属兜底直连
   "GEOIP,CN,国内直连",
@@ -166,8 +165,6 @@ function main(config) {
   if (!hasProxies && !hasProviders) {
     throw new Error("配置文件中未找到任何代理节点或订阅源 (proxies / proxy-providers)");
   }
-
-  var providerNames = hasProviders ? Object.keys(config["proxy-providers"]) : [];
 
   var groupProxy = mergeOptions(groupBaseOption, {
     "name": "国外代理",
@@ -194,11 +191,6 @@ function main(config) {
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/link.svg"
   });
 
-  if (providerNames.length > 0) {
-    groupProxy["use"] = providerNames;
-    groupLoadBalance["use"] = providerNames;
-  }
-
   var proxyGroups = [groupProxy, groupLoadBalance, groupDirect];
 
   // 基础参数
@@ -217,7 +209,7 @@ function main(config) {
   // GeoData 镜像源
   config["geodata-mode"] = true;
   config["geox-url"] = {
-    "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb",
+    "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat",
     "geosite": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat",
     "mmdb": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
   };
