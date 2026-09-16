@@ -144,11 +144,11 @@ var rules = [
   // 苹果中国服务直连
   "GEOSITE,apple-cn,国内直连",
 
-  // 确认属于国内的域名走直连
-  "GEOSITE,cn,国内直连",
-
   // 境外主流域名走代理
   "GEOSITE,geolocation-!cn,国外代理",
+
+  // 确认属于国内的域名走直连
+  "GEOSITE,cn,国内直连",
 
   // 国内 IP 归属兜底直连
   "GEOIP,CN,国内直连",
