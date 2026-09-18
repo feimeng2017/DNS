@@ -1,4 +1,3 @@
-// 基础参数配置
 var groupBaseOption = {
   "interval": 300,
   "timeout": 3000,
@@ -8,7 +7,6 @@ var groupBaseOption = {
   "hidden": false
 };
 
-// 辅助对象合并函数
 function mergeOptions(base, extra) {
   var result = {};
   var key;
@@ -25,7 +23,6 @@ function mergeOptions(base, extra) {
   return result;
 }
 
-// Telegram 专用规则集
 var ruleProviders = {
   "Telegram": {
     "type": "http",
@@ -37,7 +34,6 @@ var ruleProviders = {
   }
 };
 
-// 域名嗅探配置
 var snifferConfig = {
   "enable": true,
   "sniff": {
@@ -46,7 +42,8 @@ var snifferConfig = {
       "override-destination": true
     },
     "TLS": {
-      "ports": [443, 8443]
+      "ports": [443, 8443],
+      "override-destination": true
     }
   },
   "skip-domain": [
@@ -55,7 +52,6 @@ var snifferConfig = {
   ]
 };
 
-// DNS 模块配置
 var dnsConfig = {
   "enable": true,
   "ipv6": true,
@@ -69,33 +65,60 @@ var dnsConfig = {
   "fake-ip-filter": [
     "+.lan",
     "+.local",
-    "+.market.xiaomi.com"
+    "+.market.xiaomi.com",
+    "+.msftconnecttest.com",
+    "+.msftncsi.com",
+    "time.*.com",
+    "time.*.gov",
+    "time.*.apple.com",
+    "time1.cloud.tencent.com",
+    "*.ntp.org.cn",
+    "+.pool.ntp.org"
   ],
   "default-nameserver": [
     "223.5.5.5",
-    "119.29.29.29"
+    "119.29.29.29",
+    "2400:3200::1",
+    "2402:4e00::"
   ],
   "direct-nameserver": [
     "223.5.5.5",
-    "119.29.29.29"
+    "119.29.29.29",
+    "2400:3200::1",
+    "2402:4e00::"
   ],
   "nameserver": [
     "https://dns.cloudflare.com/dns-query",
     "https://dns.google/dns-query"
   ],
   "nameserver-policy": {
-    "geosite:private,apple-cn,cn": [
+    "geosite:private": [
       "223.5.5.5",
-      "119.29.29.29"
+      "119.29.29.29",
+      "2400:3200::1",
+      "2402:4e00::"
+    ],
+    "geosite:apple-cn": [
+      "223.5.5.5",
+      "119.29.29.29",
+      "2400:3200::1",
+      "2402:4e00::"
+    ],
+    "geosite:cn": [
+      "223.5.5.5",
+      "119.29.29.29",
+      "2400:3200::1",
+      "2402:4e00::"
     ]
   },
   "proxy-server-nameserver": [
+    "223.5.5.5",
+    "2400:3200::1",
     "https://doh.pub/dns-query",
     "https://dns.alidns.com/dns-query"
   ]
 };
 
-// TUN 模块配置
 var tunConfig = {
   "enable": true,
   "stack": "mixed",
@@ -108,6 +131,8 @@ var tunConfig = {
     "192.168.0.0/16",
     "10.0.0.0/8",
     "172.16.0.0/12",
+    "100.64.0.0/10",
+    "169.254.0.0/16",
     "224.0.0.0/4",
     "fc00::/7",
     "fe80::/10",
@@ -119,45 +144,32 @@ var tunConfig = {
   ]
 };
 
-// 路由规则
 var rules = [
-  // 局域网私有网段直连
   "IP-CIDR,127.0.0.0/8,国内直连,no-resolve",
   "IP-CIDR,192.168.0.0/16,国内直连,no-resolve",
   "IP-CIDR,10.0.0.0/8,国内直连,no-resolve",
   "IP-CIDR,172.16.0.0/12,国内直连,no-resolve",
+  "IP-CIDR,100.64.0.0/10,国内直连,no-resolve",
+  "IP-CIDR,169.254.0.0/16,国内直连,no-resolve",
+  "IP-CIDR,224.0.0.0/4,国内直连,no-resolve",
   "IP-CIDR6,::1/128,国内直连,no-resolve",
   "IP-CIDR6,fc00::/7,国内直连,no-resolve",
   "IP-CIDR6,fe80::/10,国内直连,no-resolve",
-
-  // 关键修复：Google Play 商店下载及核心底层 CDN 强制走国外代理
+  "IP-CIDR6,ff00::/8,国内直连,no-resolve",
   "DOMAIN-SUFFIX,services.googleapis.cn,国外代理",
   "DOMAIN-SUFFIX,googleapis.cn,国外代理",
   "DOMAIN-SUFFIX,gvt1.com,国外代理",
   "DOMAIN-SUFFIX,gvt2.com,国外代理",
   "DOMAIN-SUFFIX,gvt3.com,国外代理",
   "DOMAIN-SUFFIX,xn--ngstr-lra8j.com,国外代理",
-
-  // Telegram 代理
   "RULE-SET,Telegram,国外代理",
-
-  // 苹果中国服务直连
   "GEOSITE,apple-cn,国内直连",
-
-  // 境外主流域名走代理
   "GEOSITE,geolocation-!cn,国外代理",
-
-  // 确认属于国内的域名走直连
   "GEOSITE,cn,国内直连",
-
-  // 国内 IP 归属兜底直连
   "GEOIP,CN,国内直连",
-
-  // 最终兜底走国外代理
   "MATCH,国外代理"
 ];
 
-// 主入口函数
 function main(config) {
   var hasProxies = Boolean(config && config.proxies && Array.isArray(config.proxies) && config.proxies.length > 0);
   var hasProviders = Boolean(config && typeof config["proxy-providers"] === "object" && config["proxy-providers"] !== null && Object.keys(config["proxy-providers"]).length > 0);
@@ -166,21 +178,21 @@ function main(config) {
     throw new Error("配置文件中未找到任何代理节点或订阅源 (proxies / proxy-providers)");
   }
 
-  var groupProxy = mergeOptions(groupBaseOption, {
-    "name": "国外代理",
-    "type": "select",
-    "proxies": ["国外负载均衡"],
-    "include-all": true,
-    "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
-    "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
-  });
-
   var groupLoadBalance = mergeOptions(groupBaseOption, {
     "name": "国外负载均衡",
     "type": "load-balance",
     "strategy": "round-robin",
     "include-all": true,
-    "filter": "^(?!.*(官网|套餐|流量|异常|剩余)).*$",
+    "exclude-filter": "官网|套餐|流量|异常|剩余",
+    "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
+  });
+
+  var groupProxy = mergeOptions(groupBaseOption, {
+    "name": "国外代理",
+    "type": "select",
+    "proxies": ["国外负载均衡"],
+    "include-all": true,
+    "exclude-filter": "官网|套餐|流量|异常|剩余",
     "icon": "https://fastly.jsdelivr.net/gh/clash-verge-rev/clash-verge-rev.github.io@main/docs/assets/icons/adjust.svg"
   });
 
@@ -193,12 +205,10 @@ function main(config) {
 
   var proxyGroups = [groupProxy, groupLoadBalance, groupDirect];
 
-  // 基础参数
   config["ipv6"] = true;
   config["unified-delay"] = true;
   config["tcp-concurrent"] = true;
 
-  // 模块注入
   config["sniffer"] = snifferConfig;
   config["dns"] = dnsConfig;
   config["tun"] = tunConfig;
@@ -206,7 +216,6 @@ function main(config) {
   config["rule-providers"] = ruleProviders;
   config["rules"] = rules;
 
-  // GeoData 镜像源
   config["geodata-mode"] = true;
   config["geox-url"] = {
     "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat",
