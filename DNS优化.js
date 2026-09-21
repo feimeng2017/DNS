@@ -73,7 +73,9 @@ var dnsConfig = {
     "time.*.apple.com",
     "time1.cloud.tencent.com",
     "*.ntp.org.cn",
-    "+.pool.ntp.org"
+    "+.pool.ntp.org",
+    "stun.*.*",
+    "stun.*.*.*"
   ],
   "default-nameserver": [
     "223.5.5.5",
@@ -221,6 +223,11 @@ function main(config) {
     "geoip": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat",
     "geosite": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat",
     "mmdb": "https://gh-proxy.com/https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/country.mmdb"
+  };
+
+  config["profile"] = {
+    "store-selected": true,
+    "store-fake-ip": true
   };
 
   if (hasProxies) {
