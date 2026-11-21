@@ -73,7 +73,8 @@ var dnsConfig = {
   "use-hosts": true,
   "use-system-hosts": false,
   "enhanced-mode": "fake-ip",
-  "fake-ip-range": "198.18.0.0/16",
+  "fake-ip-range": "198.18.0.1/16",
+  "fake-ip-range6": "2001:2::1/64",
   "fake-ip-filter-mode": "blacklist",
   "fake-ip-filter": [
     "+.lan",
@@ -135,6 +136,7 @@ var dnsConfig = {
 var tunConfig = {
   "enable": true,
   "stack": "mips",
+  "inet6-address": ["2001:2::1/126"],
   "dns-hijack": ["any:53", "tcp://any:53"],
   "auto-route": true,
   "auto-redirect": false,
